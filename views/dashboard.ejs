@@ -1,0 +1,359 @@
+<p class="lead mb-3">Welcome <%= user.name %></p>
+<html>
+<head>
+<script src="/socket.io/socket.io.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.7.0/d3.js"></script>
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script>
+                var socket = io();
+
+                socket.on('state', function (state) {
+                        updateSpeed(state);
+                });
+                var dataset = [];
+
+                //Create SVG elements
+
+                var svgSpeed = d3.select("body")
+                        .append("svg")
+                        .style("position", "fixed")
+                        .style("right", "10px")
+                        .style("bottom", "10px")
+                        .attr("width", 160)
+                        .attr("height", 160)
+                        .append("g");
+
+                var centerX = 80;
+                var centerY = 80;
+                var path1 = [];
+                var path2 = [];
+
+                var start = 270; // °
+                var end = -10; // °
+                var startH = 0;
+                var endH = 45;
+                var stepH = 5;
+                var n = endH - startH;
+
+                function speedAngle(i) {
+                        return end + (Math.min(i, endH) - endH) / (startH - endH) * (start - end);
+                }
+
+                for (var i = 0; i <= n; i++) {
+
+                        var alpha = (end + start - speedAngle(i)) / 180 * Math.PI;
+                        var path = path2;
+                        var r = 4;
+
+                        if (i % 5 === 0) {
+
+                                path = path1;
+                                r = 7;
+
+                                svgSpeed.append("text")
+                                        .attr("x", centerX + Math.cos(alpha) * 60 - 5)
+                                        .attr("y", centerY - Math.sin(alpha) * 60 + 5)
+                                        .attr("font-weight", "bold")
+                                        .attr("font-size", "10px")
+                                        .text(endH - i);
+                        }
+
+                        path.push("M");
+                        path.push(centerX + Math.cos(alpha) * (r + 70));
+                        path.push(centerY - Math.sin(alpha) * (r + 70));
+                        path.push("L");
+                        path.push(centerX + Math.cos(alpha) * 70);
+                        path.push(centerY - Math.sin(alpha) * 70);
+                }
+
+                function arc(x, y, radius, startAngle, endAngle) {
+
+                        var start = {
+                                x: x + (radius * Math.cos(endAngle * Math.PI / 180)),
+                                y: y - (radius * Math.sin(endAngle * Math.PI / 180))
+                        };
+
+                        var end = {
+                                x: x + (radius * Math.cos(startAngle * Math.PI / 180)),
+                                y: y - (radius * Math.sin(startAngle * Math.PI / 180))
+                        };
+
+                        var a = startAngle - endAngle > 180 ? 1 : 0;
+                        return [
+                                "M", start.x, start.y,
+                                "A", radius, radius, 0, a, 0, end.x, end.y
+                        ].join(" ");
+                }
+
+                var speed = 0;
+
+                var shadowSpeed = svgSpeed.append("path")
+                        .attr("d", arc(centerX, centerY, 72, start, speedAngle(speed)))
+                        .attr("fill", "none")
+                        .style("stroke-width", "3")
+                        .attr("stroke", "rgba(0, 220, 255, 0)");
+
+                svgSpeed.append("path")
+                        .attr("d", path1.join(" "))
+                        .attr("fill", "none")
+                        .style("stroke-width", "2")
+                        .attr("stroke", "black");
+
+                svgSpeed.append("path")
+                        .attr("d", path2.join(" "))
+                        .attr("fill", "none")
+                        .attr("stroke", "black");
+
+                var direction = svgSpeed.append("path")
+                        .attr("d", [
+                                "M", Math.cos(Math.PI / 2 + Math.PI) * 5, -Math.sin(Math.PI / 2 + Math.PI) * 5,
+                                "L", Math.cos(Math.PI / 4 + Math.PI) * 15, -Math.sin(Math.PI / 4 + Math.PI) *
+                                15,
+                                "L", Math.cos(Math.PI / 2) * 20, -Math.sin(Math.PI / 2) * 20,
+                                "L", Math.cos(-Math.PI / 4) * 15, -Math.sin(-Math.PI / 4) * 15,
+                                "Z"
+                        ].join(" "))
+                        .style("transform", "translate(" + centerX + "px," + centerY + "px)")
+                        .attr("fill", "#c00")
+                        .attr("stroke", "none");
+
+                var circleSpeed = svgSpeed.append("circle")
+                        .attr("r", 4)
+                        .attr("cx", centerX + Math.cos(speedAngle(speed) / 180 * Math.PI) * 72)
+                        .attr("cy", centerY - Math.sin(speedAngle(speed) / 180 * Math.PI) * 72)
+                        .attr("fill", "white")
+                        .style("stroke-width", 2)
+                        .attr("stroke", "black");
+
+                var textSpeed = svgSpeed.append("text")
+                        .attr("x", 90)
+                        .attr("y", 140)
+                        .attr("font-weight", "bold")
+                        .attr("font-size", "30px")
+                        .attr("fill", "black")
+                        .text(speed);
+
+                svgSpeed.append("text")
+                        .attr("x", 95)
+                        .attr("y", 155)
+                        .attr("font-weight", "bold")
+                        .attr("font-size", "13px")
+                        .attr("fill", "black")
+                        .text("kph");
+
+                svgSpeed.append("text")
+                        .attr("x", centerX - 30 - 4)
+                        .attr("y", centerY + 4)
+                        .attr("font-weight", "bold")
+                        .attr("font-size", "13px")
+                        .attr("fill", "black")
+                        .text("W");
+
+                svgSpeed.append("text")
+                        .attr("x", centerX + 30 - 4)
+                        .attr("y", centerY + 4)
+                        .attr("font-weight", "bold")
+                        .attr("font-size", "13px")
+                        .attr("fill", "black")
+                        .text("E");
+
+                svgSpeed.append("text")
+                        .attr("x", centerX - 4)
+                        .attr("y", centerY - 30 + 3)
+                        .attr("font-weight", "bold")
+                        .attr("font-size", "13px")
+                        .attr("fill", "black")
+                        .text("N");
+
+                svgSpeed.append("text")
+                        .attr("x", centerX - 4)
+                        .attr("y", centerY + 30 + 7)
+                        .attr("font-weight", "bold")
+                        .attr("font-size", "13px")
+                        .attr("fill", "black")
+                        .text("S");
+                var satsGroup = svgSky.append("g");
+
+                function updateSpeed(data) {
+
+                        var speed = data.speed;
+
+                        textSpeed.text(speed);
+
+                        direction
+                                .style("transform", "translate(" + centerX + "px," + centerY + "px)rotate(" + data.bearing +
+                                        "deg)");
+
+                        circleSpeed
+                                .attr("cx", centerX + Math.cos(speedAngle(speed) / 180 * Math.PI) * 72)
+                                .attr("cy", centerY - Math.sin(speedAngle(speed) / 180 * Math.PI) * 72);
+
+                        shadowSpeed
+                                .attr("d", arc(centerX, centerY, 72, start, speedAngle(speed)))
+                                .attr("stroke", "rgba(0, 220, 255, " + (speed / (endH - startH)) + ")");
+                }
+
+                function updateTable(state) {
+                        $("#speed").text(state.speed);
+
+                }
+        </script>
+<h1>Monitoring dan Control Kendaraan Bermotor </h2>
+            <title>Monitoring Maps Realtime</title>
+            <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+            .switch {
+              position: relative;
+              display: inline-block;
+              width: 60px;
+              height: 34px;
+            }
+    
+            .switch input { 
+              opacity: 0;
+              width: 0;
+              height: 0;
+            }
+    
+            .slider {
+              position: absolute;
+              cursor: pointer;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background-color: #ccc;
+              -webkit-transition: .4s;
+              transition: .4s;
+            }
+    
+            .slider:before {
+              position: absolute;
+              content: "";
+              height: 26px;
+              width: 26px;
+              left: 4px;
+              bottom: 4px;
+              background-color: white;
+              -webkit-transition: .4s;
+              transition: .4s;
+            }
+    
+            input:checked + .slider {
+              background-color: #2196F3;
+            }
+    
+            input:focus + .slider {
+              box-shadow: 0 0 1px #2196F3;
+            }
+    
+            input:checked + .slider:before {
+              -webkit-transform: translateX(26px);
+              -ms-transform: translateX(26px);
+              transform: translateX(26px);
+            }
+    
+            /* Rounded sliders */
+            .slider.round {
+              border-radius: 34px;
+            }
+    
+            .slider.round:before {
+              border-radius: 50%;
+            }
+            </style>
+            </head>
+            <body>
+            <h3> ON OFF Kendaraan </h3>
+            <label class="switch">
+              <input type="checkbox" id="light" >
+              <span class="slider round"></span>
+            </label>
+            <label class="switch">
+                <input type="checkbox" id="light1" >
+                <span class="slider"></span>
+              </label>
+              <a href="/users/logout" class="btn btn-secondary">Logout</a>
+              <a href="/users/maps"  class="btn btn-secondary">Speed</a>
+            </body>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBhui49W8xQfWKY529i-D3uFfmExRcInc4&callback" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+<script>
+<div id="map"></div>
+    
+            <script src="/socket.io/socket.io.js"></script>
+            <script>
+                var socket = io();
+                window.addEventListener("load", function(){ //when page loads
+                var lightbox = document.getElementById("light"); 
+                lightbox.addEventListener("change", function() { //add event listener for when checkbox changes
+                socket.emit("light", Number(this.checked)); //send button status to server (as 1 or 0)
+               });
+              });
+                socket.on('light', function (data) { //get button status from client
+                document.getElementById("light").checked = data; //change checkbox according to push button on Raspberry Pi
+                socket.emit("light", data); //send push button status to back to server
+              });
+    
+              var socket = io();
+                window.addEventListener("load", function(){ //when page loads
+                var lightbox = document.getElementById("light1"); 
+                lightbox.addEventListener("change", function() { //add event listener for when checkbox changes
+                socket.emit("light1", Number(this.checked)); //send button status to server (as 1 or 0)
+               });
+              });
+                socket.on('light1', function (data) { //get button status from client
+                document.getElementById("light1").checked = data; //change checkbox according to push button on Raspberry Pi
+                socket.emit("light1", data); //send push button status to back to server
+              });
+              </script>
+              <script>
+            function initMap() {
+              var alpha = 0.1;
+              var state = {
+                lat: 0,
+                lng: 0
+            };
+
+            var mapProp = {
+              center:new google.maps.LatLng('state'),
+              zoom:17,
+            };
+            var map=new google.maps.Map(document.getElementById('map'), mapProp);
+        
+
+            var marker = new google.maps.Marker({
+                position: state,
+                icon: 'https://imageshack.com/a/img923/69/3QIVFK.png',
+                map: map,
+                title: 'Your Position'
+            });
+            
+
+            socket.on('position', function (pos) {
+
+                if (pos.lat === null || pos.lon === null) {
+                    return;
+                }
+                if (state.lat === 0 && state.lng === 0) {
+                    state.lat = pos.lat;
+                    state.lng = pos.lon;
+                } else {
+                    state.lat = (1 - alpha) * state.lat + alpha * pos.lat;
+                    state.lng = (1 - alpha) * state.lng + alpha * pos.lon;
+                }
+                map.setCenter(state);
+                marker.setPosition(state);
+            });
+          }
+          window.onload= initMap,panorama,pano,map;
+          google.maps.event.addDomListener(window,'load', initMap,panorama,pano,map);
+          
+    </script>
+    </head>
+
+    <body>
+    <div id="map" style="width:90%;height:500px;float:left"></div>
+    </body>
+    </html>
